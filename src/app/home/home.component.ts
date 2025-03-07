@@ -88,7 +88,7 @@ export class HomeComponent {
     this.editService.editData(this.selectedAddress).subscribe({
       next: (response) => {
         console.log('Address updated:', response);
-        this.fetchData(); // Rerender the address list
+        this.fetchData(); 
         this.closeForm();
       },
       error: (error) => {
