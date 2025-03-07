@@ -1,8 +1,10 @@
 import { Component } from '@angular/core';
 import { GetService } from '../services/get.service';
+import { DeleteService } from '../services/delete.service';
+import { EditService } from '../services/edit.service';
 import { CommonModule } from '@angular/common';
 import { FormComponentComponent } from '../form-component/form-component.component';
-
+import { EditStateService } from '../services/edit-state.service';
 export interface Address {
   fullName: string;
   address: string;
@@ -21,25 +23,39 @@ export interface Address {
   styleUrls: ['./home.component.scss']
 })
 export class HomeComponent {
-  addresses: Address[] = [];
-  showForm = false;
+  selectedAddress: Address | undefined = undefined;
+  addresses: Map<number, Address> = new Map();
 
-  constructor(private getService: GetService) {
+
+  constructor(
+    private getService: GetService,
+    private editService: EditService,
+    private deleteService: DeleteService,
+    private editStateService: EditStateService
+  ) {
     this.fetchData();
   }
 
   openForm() {
-    this.showForm = true;
+    this.editStateService.setIsForm(true);
   }
 
   closeForm() {
-    this.showForm = false;
+    this.editStateService.setIsForm(false);
   }
-
+  setEdit(value: boolean){
+    this.editStateService.setIsEdit(value);
+  }
+  getEdit(){
+    return this.editStateService.getIsEdit();
+  }
+  getForm(){
+    return this.editStateService.getIsForm();
+  }
   fetchData() {
     this.getService.getData().subscribe({
       next: (data: Address[]) => {
-        this.addresses = data;
+        this.addresses = new Map(data.map(address => [address.id, address]));
         console.log('Data received:', this.addresses);
       },
       error: (err) => {
@@ -49,14 +65,35 @@ export class HomeComponent {
   }
 
   addNewPerson(person: Address) {
-    this.addresses.push(person);
-    this.showForm = false;
+    this.addresses.set(person.id,person);
+    this.closeForm();
   }
 
   deleteAddress(person: Address) {
-    this.getService.deleteData(person)
+    this.deleteService.deleteData(person);
+    this.addresses.delete(person.id);
   }
+  
   editAddress(person: Address) {
-    this.getService.editData(person)
+    this.selectedAddress = { ...person }; 
+    this.editStateService.setPersonId(person.id);
+    this.openForm();
+  }
+  updateAddress() {
+    if (!this.selectedAddress) {
+      console.error("Error: No address selected for update.");
+      return; 
+    }
+    this.addresses.set(this.selectedAddress.id, this.selectedAddress);
+    this.editService.editData(this.selectedAddress).subscribe({
+      next: (response) => {
+        console.log('Address updated:', response);
+        this.fetchData(); // Rerender the address list
+        this.closeForm();
+      },
+      error: (error) => {
+        console.error('Error updating address:', error);
+      }
+    });
   }
 }
